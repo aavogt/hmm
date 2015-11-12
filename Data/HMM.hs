@@ -16,9 +16,10 @@ module Data.HMM
     )
     where
 
+import Prelude hiding (sum)
 import Debug.Trace
 import Data.Array
-import Data.List
+import Data.List hiding (sum)
 import Data.List.Extras (argmax)
 import Data.Number.LogFloat
 import qualified Data.MemoCombinators as Memo
@@ -30,6 +31,7 @@ import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as M 
 import Data.Char (isSpace)
 
+logFloatI x = logFloat (fromIntegral x)
 
 type Prob = LogFloat
 
@@ -87,11 +89,11 @@ simpleMM eL order = HMM { states = sL
                         , transMatrix = \s1 -> \s2 -> if (length s1==0) || (isPrefixOf (tail s1) s2)
                                                           then skewedDist s2 --1.0 / (logFloat $ length sL)
                                                           else 0.0
-                        , outMatrix = \s -> \e -> 1.0/(logFloat $ length eL)
+                        , outMatrix = \s -> \e -> 1.0/(logFloatI $ length eL)
                         }
                             where evenDist = 1.0 / sLlen
-                                  skewedDist s = (logFloat $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
-                                  sLlen = logFloat $ length sL
+                                  skewedDist s = (logFloatI $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
+                                  sLlen = logFloatI $ length sL
                                   sL = fmap reverse $ replicateM (fromIntegral order-1) eL
 
 -- | Use simpleHMM to create an untrained hidden Markov model
@@ -101,11 +103,11 @@ simpleHMM sL eL = HMM { states = sL
                       , events = eL
                       , initProbs = \s -> evenDist--skewedDist s
                       , transMatrix = \s1 -> \s2 -> skewedDist s2
-                      , outMatrix = \s -> \e -> 1.0/(logFloat $ length eL)
+                      , outMatrix = \s -> \e -> 1.0/(logFloatI $ length eL)
                       }
                           where evenDist = 1.0 / sLlen
-                                skewedDist s = (logFloat $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
-                                sLlen = logFloat $ length sL
+                                skewedDist s = (logFloatI $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
+                                sLlen = logFloatI $ length sL
                                   
 
 -- | forward algorithm determines the probability that a given event array would be emitted by our HMM
@@ -291,8 +293,8 @@ hmmJoin hmm1 hmm2 ratio = HMM { states = states1 ++ states2
                                                                 else if (s2 `elem` states2 && s2 `elem` states2)
                                                                         then (transMatrix hmm2 (lift s1) (lift s2))*r2
                                                                         else if (s1 `elem` states1)
-                                                                                then (r2)/(logFloat $ length $ states2)
-                                                                                else (r1)/(logFloat $ length $ states1)
+                                                                                then (r2)/(logFloatI $ length $ states2)
+                                                                                else (r1)/(logFloatI $ length $ states1)
                               , outMatrix = \s -> if (s `elem` states1)
                                                      then (outMatrix hmm1 $ lift s)
                                                      else (outMatrix hmm2 $ lift s)
