@@ -303,23 +303,27 @@ hmmJoin hmm1 hmm2 ratio = HMM { states = states1 ++ states2
                                         r2=1-ratio
                                         states1 = map (\x -> (1,x)) $ states hmm1
                                         states2 = map (\x -> (2,x)) $ states hmm2
-                                        
 --                                         lift :: (Int,String) -> a
-                                        lift x =snd x 
+                                        lift x =snd x
 --                                         lift x =read $ (snd x )
 
 -- debug utils
-hmmid :: HMM stateType eventType -> String
-hmmid hmm = show $ initProbs hmm $ (states hmm) !! 1
+-- | These are commented out to silence GHC warnings.
+-- | Since these are designated exclusively for debugging
+-- | it could be sensible to isolate them in another module.
+-- hmmid :: HMM stateType eventType -> String
+-- hmmid hmm = show $ initProbs hmm $ (states hmm) !! 1
 
 -- | tests
-                                              
+-- | Commenting out these ones as well until they are isolated as a
+-- | separate module.
+{-
 listCPExp :: [a] -> Int -> [[a]]
 listCPExp language order = listCPExp' order [[]]
     where
-        listCPExp' order list
-            | order == 0    = list
-            | otherwise     = listCPExp' (order-1) [symbol:l | l <- list, symbol <- language]
+        listCPExp' order' list
+            | order' == 0    = list
+            | otherwise     = listCPExp' (order'-1) [symbol:l | l <- list, symbol <- language]
 
 -- | should always equal 1
 forwardtest ::
@@ -338,24 +342,22 @@ fbtest ::
     (Eq stateType, Eq eventType, Show stateType, Show eventType) =>
     HMM stateType eventType -> [eventType] -> String
 fbtest hmm events = "fwd: " ++ show (forward hmm events) ++ " bkwd:" ++ show (backward hmm  events)
-    
+
 -- | initProbs should always equal 1; the others should equal the number of states
 verifyhmm :: HMM stateType eventType -> IO ()
 verifyhmm hmm = do
         seq ip $ check "initProbs" ip
         check "transMatrix" tm
         check "outMatrix" om
-           
    where check str var = do
                 putStrLn $ str++" tollerance check: "++show var
 {-                if abs(var-1)<0.0001
                     then putStrLn "True"
                     else putStrLn "False"-}
-                    
          ip = sum $ [initProbs hmm s | s <- states hmm]
          tm = (sum $ [transMatrix hmm s1 s2 | s1 <- states hmm, s2 <- states hmm]) -- (length $ states hmm)
          om = sum $ [outMatrix hmm s e | s <- states hmm, e <- events hmm] -- / length $ states hmm
-
+-}
 
 
 -----
