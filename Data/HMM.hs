@@ -26,11 +26,11 @@ import qualified Data.MemoCombinators as Memo
 import System.IO
 import Data.Binary
 import Control.Monad (liftM, replicateM)
-import Control.Applicative ((<*>), (<$>))
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.Map as M 
 import Data.Char (isSpace)
 
+logFloatI :: Integral a => a -> LogFloat
 logFloatI x = logFloat (fromIntegral x)
 
 type Prob = LogFloat
@@ -85,11 +85,11 @@ simpleMM ::
     [a] -> i -> HMM [a] a
 simpleMM eL order = HMM { states = sL
                         , events = eL
-                        , initProbs = \s -> evenDist--skewedDist s
+                        , initProbs = \_ -> evenDist--skewedDist s
                         , transMatrix = \s1 -> \s2 -> if (length s1==0) || (isPrefixOf (tail s1) s2)
                                                           then skewedDist s2 --1.0 / (logFloat $ length sL)
                                                           else 0.0
-                        , outMatrix = \s -> \e -> 1.0/(logFloatI $ length eL)
+                        , outMatrix = \_ -> \_ -> 1.0/(logFloatI $ length eL)
                         }
                             where evenDist = 1.0 / sLlen
                                   skewedDist s = (logFloatI $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
@@ -101,9 +101,9 @@ simpleHMM :: (Eq stateType, Show eventType, Show stateType) =>
              [stateType] -> [eventType] -> HMM stateType eventType
 simpleHMM sL eL = HMM { states = sL
                       , events = eL
-                      , initProbs = \s -> evenDist--skewedDist s
-                      , transMatrix = \s1 -> \s2 -> skewedDist s2
-                      , outMatrix = \s -> \e -> 1.0/(logFloatI $ length eL)
+                      , initProbs = \_ -> evenDist--skewedDist s
+                      , transMatrix = \_ -> \s2 -> skewedDist s2
+                      , outMatrix = \_ -> \_ -> 1.0/(logFloatI $ length eL)
                       }
                           where evenDist = 1.0 / sLlen
                                 skewedDist s = (logFloatI $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
@@ -120,11 +120,11 @@ forwardArray :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => 
 forwardArray hmm obs = sum [alpha hmm obs bT state | state <- states hmm]
     where
           bT = snd $ bounds obs
-                                                         
-alpha :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType 
-                                                                      -> Array Int eventType 
-                                                                      -> Int 
-                                                                      -> stateType 
+
+alpha :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType
+                                                                      -> Array Int eventType
+                                                                      -> Int
+                                                                      -> stateType
                                                                       -> Prob
 alpha hmm obs = memo_alpha
     where memo_alpha t state = memo_alpha2 t (stateIndex hmm state)
@@ -143,10 +143,10 @@ backward hmm obs = backwardArray hmm $ listArray (1,length obs) obs
 backwardArray :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> Array Int eventType -> Prob
 backwardArray hmm obs = backwardArray' hmm obs
     where 
-          backwardArray' hmm obs = sum [(initProbs hmm state)
-                                       *(outMatrix hmm state $ obs!1)
-                                       *(beta hmm obs 1 state)
-                                       | state <- states hmm
+          backwardArray' h obs' = sum [(initProbs h state)
+                                       *(outMatrix h state $ obs'!1)
+                                       *(beta h obs' 1 state)
+                                       | state <- states h
                                        ]
     
 beta :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType 
@@ -230,14 +230,14 @@ baumWelchItr hmm obs = --par newInitProbs $ par newTransMatrix $ par newOutMatri
           memo_newInitProbs2 = Memo.integral memo_newInitProbs3
           memo_newInitProbs3 state = newInitProbs (states hmm !! state)
           newInitProbs state = gamma 1 state
-          
+
           memo_newTransMatrix state1 state2 = memo_newTransMatrix2 (stateIndex hmm state1) (stateIndex hmm state2)
           memo_newTransMatrix2 = (Memo.memo2 Memo.integral Memo.integral memo_newTransMatrix3)
           memo_newTransMatrix3 state1 state2 = newTransMatrix (states hmm !! state1) (states hmm !! state2)
           newTransMatrix state1 state2 = --trace ("newTransMatrix"++(hmmid hmm)) $
                                          sum [xi t state2 state1 | t <- [2..bT]]
                                         /sum [gamma t state1 | t <- [2..bT]]
-          
+
           memo_newOutMatrix state event = memo_newOutMatrix2 (stateIndex hmm state) (eventIndex hmm event)
           memo_newOutMatrix2 = (Memo.memo2 Memo.integral Memo.integral memo_newOutMatrix3)
           memo_newOutMatrix3 state event = newOutMatrix (states hmm !! state) (events hmm !! event)
