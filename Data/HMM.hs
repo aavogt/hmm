@@ -27,7 +27,7 @@ import System.IO
 import Data.Binary
 import Control.Monad (liftM, replicateM)
 import qualified Data.ByteString.Lazy as BS
-import qualified Data.Map as M 
+import qualified Data.Map as M
 import Data.Char (isSpace)
 
 logFloatI :: Integral a => a -> LogFloat
@@ -35,7 +35,7 @@ logFloatI x = logFloat (fromIntegral x)
 
 type Prob = LogFloat
 
--- | The data types for our HMM.  
+-- | The data types for our HMM.
 
 data HMM stateType eventType = HMM { states :: [stateType]
                                    , events :: [eventType]
@@ -46,13 +46,13 @@ data HMM stateType eventType = HMM { states :: [stateType]
 --     deriving (Show, Read)
 
 instance (Show stateType, Show eventType) => Show (HMM stateType eventType) where
-    show hmm = hmm2str hmm 
+    show hmm = hmm2str hmm
 
 hmm2str ::
     (Show stateType, Show eventType) =>
     HMM stateType eventType -> String
-hmm2str hmm = "HMM" ++ "{ states=" ++ (show $ states hmm) 
-                     ++ ", events=" ++ (show $ events hmm) 
+hmm2str hmm = "HMM" ++ "{ states=" ++ (show $ states hmm)
+                     ++ ", events=" ++ (show $ events hmm)
                      ++ ", initProbs=" ++ (show [(s,initProbs hmm s) | s <- states hmm])
                      ++ ", transMatrix=" ++ (show [(s1,s2,transMatrix hmm s1 s2) | s1 <- states hmm, s2 <- states hmm])
                      ++ ", outMatrix=" ++ (show [(s,e,outMatrix hmm s e) | s <- states hmm, e <- events hmm])
@@ -68,16 +68,13 @@ elemIndexMsg name x select hmm =
             error (name ++ ": Index " ++ show x ++ " not in HMM " ++ show hmm)
 
 elemIndex2 :: (Show a, Eq a) => a -> [a] -> Int
-elemIndex2 x xs =
-    elemIndexMsg "elemIndex2" x id xs
+elemIndex2 x xs = elemIndexMsg "elemIndex2" x id xs
 
 stateIndex :: (Show stateType, Show eventType, Eq stateType) => HMM stateType eventType -> stateType -> Int
-stateIndex hmm state =
-    elemIndexMsg "stateIndex" state states hmm
+stateIndex hmm state = elemIndexMsg "stateIndex" state states hmm
 
 eventIndex :: (Show stateType, Show eventType, Eq eventType) => HMM stateType eventType -> eventType -> Int
-eventIndex hmm event =
-    elemIndexMsg "eventIndex" event events hmm
+eventIndex hmm event = elemIndexMsg "eventIndex" event events hmm
 
 -- | Use simpleMM to create an untrained standard Markov model
 simpleMM ::
@@ -108,14 +105,12 @@ simpleHMM sL eL = HMM { states = sL
                           where evenDist = 1.0 / sLlen
                                 skewedDist s = (logFloatI $ 1+elemIndex2 s sL) / ( (sLlen * (sLlen+ (logFloat (1.0 :: Double))))/2.0)
                                 sLlen = logFloatI $ length sL
-                                  
 
 -- | forward algorithm determines the probability that a given event array would be emitted by our HMM
 forward :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> [eventType] -> Prob
 forward hmm obs = forwardArray hmm (listArray (1,bT) obs)
     where
           bT = length obs
-                               
 forwardArray :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> Array Int eventType -> Prob
 forwardArray hmm obs = sum [alpha hmm obs bT state | state <- states hmm]
     where
@@ -130,94 +125,98 @@ alpha hmm obs = memo_alpha
     where memo_alpha t state = memo_alpha2 t (stateIndex hmm state)
           memo_alpha2 = (Memo.memo2 Memo.integral Memo.integral memo_alpha3)
           memo_alpha3 t' state'
-            | t' == 1       = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $ 
+            | t' == 1       = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $
                               (outMatrix hmm (states hmm !! state') $ obs!t')*(initProbs hmm $ states hmm !! state')
-            | otherwise     = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $ 
+            | otherwise     = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $
                               (outMatrix hmm (states hmm !! state') $ obs!t')*(sum [(memo_alpha (t'-1) state2)*(transMatrix hmm state2 (states hmm !! state')) | state2 <- states hmm])
 
-   
 -- | backwards algorithm does the same thing as the forward algorithm, just a different implementation
 backward :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> [eventType] -> Prob
 backward hmm obs = backwardArray hmm $ listArray (1,length obs) obs
-    
+
 backwardArray :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> Array Int eventType -> Prob
 backwardArray hmm obs = backwardArray' hmm obs
-    where 
+    where
           backwardArray' h obs' = sum [(initProbs h state)
                                        *(outMatrix h state $ obs'!1)
                                        *(beta h obs' 1 state)
                                        | state <- states h
                                        ]
-    
-beta :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType 
-                                                                      -> Array Int eventType 
-                                                                      -> Int 
-                                                                      -> stateType 
-                                                                      -> Prob
+
+beta :: (Eq eventType, Eq stateType, Show eventType, Show stateType)
+     => HMM stateType eventType
+     -> Array Int eventType
+     -> Int
+     -> stateType
+     -> Prob
 beta hmm obs = memo_beta
     where bT = snd $ bounds obs
           memo_beta t state = memo_beta2 t (stateIndex hmm state)
           memo_beta2 = (Memo.memo2 Memo.integral Memo.integral memo_beta3)
           memo_beta3 t' state'
-            | t' == bT       = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $ 
+            | t' == bT       = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $
                               1
-            | otherwise     = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $ 
+            | otherwise     = -- trace ("memo_alpha' t'="++show t'++", state'="++show state') $
                               sum [(transMatrix hmm (states hmm !! state') state2)
                                   *(outMatrix hmm state2 $ obs!(t'+1))
-                                  *(memo_beta (t'+1) state2) 
+                                  *(memo_beta (t'+1) state2)
                                   | state2 <- states hmm
                                   ]
 
 
 -- | Viterbi's algorithm calculates the most probable path through our states given an event array
-viterbi :: (Eq eventType, Ord stateType, Show eventType, Show stateType) => 
+viterbi :: (Eq eventType, Ord stateType, Show eventType, Show stateType) =>
            HMM stateType eventType -> Array Int eventType -> [stateType]
 viterbi hmm obs = [memo_x' t | t <- [sT..bT]]
     where (sT,bT) =bounds obs
            -- use a map to speed up state->integer and back
           sts=M.fromList $ zip (states hmm) [1..]
-          stsInv=M.fromList $ zip [1..] (states hmm) 
+          stsInv=M.fromList $ zip [1..] (states hmm)
           look t m e=case M.lookup e m of
             Just v->v
             Nothing->error (t++":"++ (show e)++" not found")
           stLook = look "State" sts
           stInv = look "StateIdx" stsInv
           memo_x' = Memo.integral x'
-          x' t 
+          x' t
               | t == bT   = argmax (\i -> memo_delta bT i) (states hmm)
               | otherwise = memo_psi (t+1) (memo_x' (t+1))
-              
 --           delta :: Int -> stateType -> Prob
           memo_delta t state = memo_delta2 t (stLook state)
           memo_delta2 = (Memo.memo2 Memo.integral Memo.integral memo_delta3)
           memo_delta3 t state = delta t (stInv state)
           delta t state
               | t == sT    = (outMatrix hmm state $ obs!t)*(initProbs hmm state)
-              | otherwise = 
+              | otherwise =
                 let om=outMatrix hmm (state) $ obs!t
                 in maximum [(memo_delta (t-1) i)*(transMatrix hmm i state)*om
-                                    | i <- states hmm
-                                    ]
-          
+                           | i <- states hmm]
+
 --           psi :: Int -> stateType -> stateType
           memo_psi t state = memo_psi2 t (stLook state)
           memo_psi2 = (Memo.memo2 Memo.integral Memo.integral memo_psi3)
           memo_psi3 t state = psi t (stInv state)
           psi t state 
               | t == 1    = head $ states hmm
-              | otherwise = argmax (\i -> (memo_delta (t-1) i) * (transMatrix hmm i state)) (states hmm) 
+              | otherwise = argmax (\i -> (memo_delta (t-1) i) * (transMatrix hmm i state)) (states hmm)
 
 -- | Baum-Welch is used to train an HMM
-baumWelch :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> Array Int eventType -> Int -> HMM stateType eventType
+baumWelch :: (Eq eventType, Eq stateType, Show eventType, Show stateType)
+          => HMM stateType eventType
+          -> Array Int eventType
+          -> Int
+          -> HMM stateType eventType
 baumWelch hmm obs count
     | count == 0    = hmm
-    | otherwise     = -- trace ("baumWelch iterations left: "++(show count)) $ 
+    | otherwise     = -- trace ("baumWelch iterations left: "++(show count)) $
                       trace (show itr) $
                       baumWelch itr obs (count-1)
         where itr = baumWelchItr hmm obs
-    
-baumWelchItr :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> Array Int eventType -> HMM stateType eventType
-baumWelchItr hmm obs = --par newInitProbs $ par newTransMatrix $ par newOutMatrix 
+
+baumWelchItr :: (Eq eventType, Eq stateType, Show eventType, Show stateType)
+             => HMM stateType eventType
+             -> Array Int eventType -> HMM stateType eventType
+baumWelchItr hmm obs = --par newInitProbs $ par newTransMatrix $ par newOutMatrix
                        --trace "baumWelchItr " $
                        HMM { states = states hmm
                            , events = events hmm
@@ -407,7 +406,9 @@ hmm2Array hmm = let
                                                                                                       | s <- states hmm]
                          }
 
-array2hmm :: (Show stateType, Show eventType, Eq stateType, Eq eventType) => (HMMArray stateType eventType) -> (HMM stateType eventType)
+array2hmm :: (Show stateType, Show eventType, Eq stateType, Eq eventType)
+          => (HMMArray stateType eventType)
+          -> (HMM stateType eventType)
 array2hmm hmmA = HMM { states = statesA hmmA
                      , events = eventsA hmmA
                      , initProbs = \s -> (initProbsA hmmA) ! (stateAIndex hmmA s)
@@ -415,7 +416,9 @@ array2hmm hmmA = HMM { states = statesA hmmA
                      , outMatrix = \s -> \e -> outMatrixA hmmA ! (stateAIndex hmmA s) ! (eventAIndex hmmA e)
                      }
 
-array2hmm' :: (Ord stateType, Ord eventType,Show stateType, Show eventType) => (HMMArray stateType eventType) -> (HMM stateType eventType)
+array2hmm' :: (Ord stateType, Ord eventType,Show stateType, Show eventType)
+           => (HMMArray stateType eventType)
+           -> (HMM stateType eventType)
 array2hmm' hmmA = let
   sts=M.fromList $ zip (statesA hmmA) [1..]
   evts=M.fromList $ zip (eventsA hmmA) [1..]
@@ -432,18 +435,21 @@ array2hmm' hmmA = let
                      }
 
 -- | saves the HMM to a file for later retrieval.  HMMs can take a long time to calculate, so this is very useful
-saveHMM :: (Show stateType, Show eventType) => FilePath -> HMM stateType eventType -> IO ()
+saveHMM :: (Show stateType, Show eventType)
+        => FilePath
+        -> HMM stateType eventType
+        -> IO ()
 saveHMM file = writeFile file . show . hmm2Array
 
 saveHMM' :: (Binary stateType, Binary eventType) => FilePath -> HMM stateType eventType -> IO ()
 saveHMM' file = BS.writeFile file . encode . hmm2Array
 
--- | loads the HMM from a file.  You must specify the type of the resulting HMM when you call it.  For example, (loadHMM "file.hmm" :: HMM String Char)
-
-loadHMM ::
-    (Eq eventType, Eq stateType,
-     Show stateType, Show eventType, Read stateType, Read eventType) =>
-    FilePath -> IO (HMM stateType eventType)
+-- | loads the HMM from a file.  You must specify the type of the resulting HMM
+-- | when you call it.  For example, (loadHMM "file.hmm" :: HMM String Char)
+loadHMM :: (Eq eventType, Eq stateType, Show stateType, Show eventType,
+            Read stateType, Read eventType)
+        => FilePath
+        -> IO (HMM stateType eventType)
 loadHMM file = do
     hmmstr <- hGetContents =<< openFile file ReadMode
     case reads hmmstr of
