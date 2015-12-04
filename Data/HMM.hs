@@ -1,7 +1,10 @@
 -- | Data.HMM is a library for using Hidden Markov Models (HMMs) with Haskell.  HMMs are a common method of machine learning.  All of the most frequently used algorithms---the forward and backwards algorithms, Viterbi, and Baum-Welch---are implemented in this library.
 
---  The best way to learn to use it is to visit the tutorial at http://izbicki.me/blog/using-hmms-in-haskell-for-bioinformatics.  The tutorial also includes performance benchmarks and caveats that you should be aware of.
-module Data.HMM 
+-- | The best way to learn to use it is to visit the tutorial at
+-- | http://izbicki.me/blog/using-hmms-in-haskell-for-bioinformatics.
+-- | The tutorial also includes performance benchmarks and caveats that
+-- | you should be aware of.
+module Data.HMM
     ( HMM(..), Prob
     , forward
     , backward
@@ -43,7 +46,7 @@ data HMM stateType eventType = HMM { states :: [stateType]
                                    , transMatrix :: (stateType -> stateType -> Prob)
                                    , outMatrix :: (stateType -> eventType -> Prob)
                                    } -- FIXME: This should probably be changed to be HMMArray
---     deriving (Show, Read)
+    -- deriving (Show, Read)
 
 instance (Show stateType, Show eventType) => Show (HMM stateType eventType) where
     show hmm = hmm2str hmm
@@ -111,16 +114,20 @@ forward :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM s
 forward hmm obs = forwardArray hmm (listArray (1,bT) obs)
     where
           bT = length obs
-forwardArray :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType -> Array Int eventType -> Prob
+forwardArray :: (Eq eventType, Eq stateType, Show eventType, Show stateType)
+             => HMM stateType eventType
+             -> Array Int eventType
+             -> Prob
 forwardArray hmm obs = sum [alpha hmm obs bT state | state <- states hmm]
     where
           bT = snd $ bounds obs
 
-alpha :: (Eq eventType, Eq stateType, Show eventType, Show stateType) => HMM stateType eventType
-                                                                      -> Array Int eventType
-                                                                      -> Int
-                                                                      -> stateType
-                                                                      -> Prob
+alpha :: (Eq eventType, Eq stateType, Show eventType, Show stateType)
+      => HMM stateType eventType
+      -> Array Int eventType
+      -> Int
+      -> stateType
+      -> Prob
 alpha hmm obs = memo_alpha
     where memo_alpha t state = memo_alpha2 t (stateIndex hmm state)
           memo_alpha2 = (Memo.memo2 Memo.integral Memo.integral memo_alpha3)
@@ -164,14 +171,15 @@ beta hmm obs = memo_beta
                                   ]
 
 
--- | Viterbi's algorithm calculates the most probable path through our states given an event array
+-- | Viterbi's algorithm calculates the most probable path through our states
+-- | given an event array.
 viterbi :: (Eq eventType, Ord stateType, Show eventType, Show stateType) =>
            HMM stateType eventType -> Array Int eventType -> [stateType]
 viterbi hmm obs = [memo_x' t | t <- [sT..bT]]
     where (sT,bT) =bounds obs
            -- use a map to speed up state->integer and back
           sts=M.fromList $ zip (states hmm) [1..]
-          stsInv=M.fromList $ zip [1..] (states hmm)
+          stsInv=M.fromList $ zip ([1..] :: [Int]) (states hmm)
           look t m e=case M.lookup e m of
             Just v->v
             Nothing->error (t++":"++ (show e)++" not found")
@@ -246,14 +254,12 @@ baumWelchItr hmm obs = --par newInitProbs $ par newTransMatrix $ par newOutMatri
                                          | t <- [2..bT]
                                          ]
                                     /sum [gamma t state | t <- [2..bT]]
-                                    
           -- Greek functions, included here for memoization
           xi t state1 state2 = (memo_alpha (t-1) state1)
                               *(transMatrix hmm state1 state2)
                               *(outMatrix hmm state2 $ obs!t)
                               *(memo_beta t state2)
                               /backwardArrayVar -- (backwardArray hmm obs)
-          
           gamma t state = (memo_alpha t state)
                          *(memo_beta t state)
                          /backwardArrayVar
@@ -269,7 +275,6 @@ baumWelchItr hmm obs = --par newInitProbs $ par newTransMatrix $ par newOutMatri
                                   *(memo_beta (t'+1) state2) 
                                   | state2 <- states hmm
                                   ]
-                                  
           memo_alpha t state = memo_alpha2 t (stateIndex hmm state)
           memo_alpha2 = (Memo.memo2 Memo.integral Memo.integral memo_alpha3)
           memo_alpha3 t' state'
