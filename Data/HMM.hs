@@ -387,12 +387,6 @@ instance (Binary stateType, Binary eventType) => Binary (HMMArray stateType even
   get=HMMArray <$> get <*> get  <*> get  <*> get  <*> get
 
 
-instance Read LogFloat where
-    readsPrec a str = do
-        dbl <- readsPrec a (drop 8 str) :: [(Double,String)]
---         trace ("LogFloat -> "++show str) $ [(logFloat ((read (drop 8 str)) :: Double), "")]
-        return (logFloat $ fst dbl, snd dbl)
-
 instance Binary LogFloat where
   put =put . (logFromLogFloat:: LogFloat -> Double)
   get =liftM logToLogFloat (get::Get Double)
